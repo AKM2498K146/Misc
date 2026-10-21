@@ -1,0 +1,445 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>好好码字 · HHMZBOOK 转换 TXT 工具</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+                 "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    padding: 20px; color: #e2e8f0;
+  }
+  .container {
+    background: #0f3460; border-radius: 16px; padding: 36px;
+    max-width: 480px; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  }
+  h1 { font-size: 21px; text-align: center; margin-bottom: 6px; color: #fff; }
+  .subtitle { text-align: center; color: #a0aec0; font-size: 13px; margin-bottom: 24px; }
+  .drop-zone {
+    border: 2px dashed #4a6fa5; border-radius: 12px; padding: 36px 20px;
+    text-align: center; cursor: pointer; transition: all 0.2s;
+  }
+  .drop-zone:hover, .drop-zone.dragover { border-color: #ee6c4d; background: rgba(238,108,77,0.08); }
+  .drop-zone .icon { font-size: 44px; margin-bottom: 10px; }
+  .drop-zone .hint { color: #a0aec0; font-size: 14px; }
+  .drop-zone .filename { color: #ee6c4d; font-size: 14px; margin-top: 8px; word-break: break-all; }
+  input[type=file] { display: none; }
+  .rename-box {
+    margin-top: 18px; background: rgba(255,255,255,0.04);
+    border: 1px solid #4a6fa5; border-radius: 12px; padding: 14px 16px;
+  }
+  .rename-box label { display: block; color: #a0aec0; font-size: 13px; margin-bottom: 8px; }
+  .input-wrap { display: flex; align-items: center; gap: 6px; }
+  .rename-box input[type=text] {
+    flex: 1; min-width: 0; padding: 9px 12px; font-size: 14px; border-radius: 8px;
+    border: 1px solid #4a6fa5; background: #16213e; color: #e2e8f0; outline: none; font-family: inherit;
+  }
+  .rename-box input[type=text]:focus { border-color: #ee6c4d; }
+  .ext { color: #ee6c4d; font-size: 14px; font-weight: 600; flex-shrink: 0; }
+
+  .btn-row { display: flex; gap: 8px; margin-top: 20px; align-items: stretch; }
+  .btn {
+    border: none; border-radius: 10px; cursor: pointer;
+    transition: opacity 0.2s; font-family: inherit;
+  }
+  .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .btn:not(:disabled):hover { opacity: 0.9; }
+  /* 主按钮：占据最大位置 */
+  .btn-main { flex: 3; padding: 13px 10px; font-size: 15px; background: #ee6c4d; color: #fff; }
+  /* 左右小按钮 */
+  .btn-side {
+    flex: 1; padding: 12px 4px; font-size: 12.5px;
+    background: transparent; border: 1px solid #4a6fa5; color: #cbd5e0;
+  }
+  .btn-side:not(:disabled):hover { background: rgba(74,111,165,0.2); opacity: 1; }
+  /* 分发本工具 */
+  .btn-distribute {
+    display: block; width: 100%; margin-top: 14px; padding: 12px;
+    background: transparent; border: 1px dashed #4a6fa5; color: #a0aec0;
+    font-size: 13.5px;
+  }
+  .btn-distribute:not(:disabled):hover { background: rgba(74,111,165,0.15); opacity: 1; }
+  .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  #status {
+    margin-top: 14px; text-align: center; font-size: 13px; min-height: 20px;
+    word-break: break-all; line-height: 1.6;
+  }
+  #status.ok { color: #68d391; }
+  #status.err { color: #fc8181; }
+  #status.warn { color: #f6ad55; }
+  .footer { margin-top: 22px; text-align: center; color: #718096; font-size: 12px; line-height: 1.7; }
+  .gh {
+    margin-top: 18px; padding-top: 16px; border-top: 1px solid rgba(74,111,165,0.4);
+    text-align: center;
+  }
+  .gh a.gh-link {
+    display: inline-block; color: #cbd5e0; font-size: 13px;
+    text-decoration: none; padding: 8px 16px; border: 1px solid #4a6fa5;
+    border-radius: 8px; transition: background 0.2s;
+  }
+  .gh a.gh-link:hover { background: rgba(74,111,165,0.2); }
+  .gh-url {
+    margin-top: 10px; font-size: 11px; color: #4a6fa5; word-break: break-all;
+    line-height: 1.6; display: none; user-select: all;
+  }
+  .gh-url.show { display: block; }
+</style>
+</head>
+<body>
+  <div class="container">
+    <h1>好好码字 · HHMZBOOK 转换 TXT 工具</h1>
+    <p class="subtitle">本地纯前端处理，数据不会上传任何服务器</p>
+
+    <div class="drop-zone" id="dropZone">
+      <div class="icon">📥</div>
+      <div class="hint">点击选择 .hhmzbook 文件，或拖拽到此处</div>
+      <div class="filename" id="filename"></div>
+    </div>
+    <input type="file" id="fileInput" accept=".hhmzbook,.hhbak">
+
+    <div class="rename-box" id="renameBox" style="display:none;">
+      <label for="outName">保存文件名（默认取作品名，可自定义）</label>
+      <div class="input-wrap">
+        <input type="text" id="outName" placeholder="请输入文件名">
+        <span class="ext">.txt</span>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-main" id="convertBtn" disabled>转换为 TXT</button>
+      <button class="btn btn-side" id="pickerBtn" disabled>另存</button>
+    </div>
+    <div id="status"></div>
+
+    <button class="btn btn-distribute" id="distBtn">分发我</button>
+
+    <div class="footer">
+      仅用于处理用户本人创作或已获授权的文本数据<br>
+      格式本质：gzip 压缩的 JSON 文本文档
+    </div>
+
+    <div class="gh">
+      <a class="gh-link" id="ghLink" href="https://github.com/AKM2498K146/Misc/tree/main/HHMZtoTXT">
+        项目地址 GitHub ↗
+      </a>
+      <div class="gh-url" id="ghUrl">https://github.com/AKM2498K146/Misc/tree/main/HHMZtoTXT</div>
+    </div>
+  </div>
+
+<script>
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const convertBtn = document.getElementById('convertBtn');
+const pickerBtn = document.getElementById('pickerBtn');
+const distBtn = document.getElementById('distBtn');
+const statusEl = document.getElementById('status');
+const filenameEl = document.getElementById('filename');
+const renameBox = document.getElementById('renameBox');
+const outName = document.getElementById('outName');
+
+let rawText = '';
+let defaultName = 'book';
+let lastTxt = '';
+let lastName = 'book.txt';
+
+// 出厂快照：脚本刚执行、用户尚未交互时抓取，DOM 是全新状态
+// 拿它去分发，绝不会带出任何用户数据（文件名/书名/状态全都没有）
+const SELF_HTML = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+
+function setStatus(msg, cls) {
+  statusEl.textContent = msg;
+  statusEl.className = cls || '';
+}
+
+function setBusy(busy) {
+  convertBtn.disabled = busy || !rawText;
+  pickerBtn.disabled = busy || !rawText || typeof window.showSaveFilePicker !== 'function';
+}
+
+dropZone.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', e => { if (e.target.files.length) loadFile(e.target.files[0]); });
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  if (e.dataTransfer.files.length) loadFile(e.dataTransfer.files[0]);
+});
+
+function loadFile(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    rawText = reader.result;
+    filenameEl.textContent = file.name;
+    defaultName = 'book';
+    outName.value = '';
+    lastTxt = '';
+    try {
+      const seg = rawText.match(/#HHMZ-BOOK-ARCHIVE-DATA#(\d+)\/(\d+)#([A-Za-z0-9+/=]+)/);
+      if (seg) {
+        const bin = Uint8Array.from(atob(seg[3].replace(/\s+/g, '')), c => c.charCodeAt(0));
+        new Response(new Blob([bin]).stream().pipeThrough(new DecompressionStream('gzip')))
+          .text().then(json => {
+            const n = (JSON.parse(json).name || '').trim();
+            if (n) { defaultName = n; outName.value = n; }
+          }).catch(() => {});
+      }
+    } catch (e) {}
+    renameBox.style.display = 'block';
+    setBusy(false);
+    setStatus('文件已就绪，可修改文件名后点击「转换为 TXT」');
+  };
+  reader.onerror = () => setStatus('文件读取失败', 'err');
+  reader.readAsText(file);
+}
+
+function sanitizeName(name) {
+  return String(name || '').replace(/[\\/:*?"<>|\x00-\x1f]/g, '').replace(/\s+/g, ' ').trim();
+}
+
+function decode(encoded) {
+  const bin = Uint8Array.from(atob(encoded), c => c.charCodeAt(0));
+  return new Response(new Blob([bin]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
+}
+
+function projectToTxt(p) {
+  const lines = [];
+  const push = t => lines.push(t);
+  const name = (p.name || '未命名作品').trim();
+  const author = (p.author || '').trim();
+
+  push('《' + name + '》');
+  if (author) push('作者：' + author);
+  push(''); push('='.repeat(40)); push('');
+
+  if (p.tag) { push('【标签】'); push(p.tag); push(''); }
+  if (p.quickInput) { push('【简介】'); push(p.quickInput); push(''); }
+
+  if (Array.isArray(p.outlines)) {
+    p.outlines.forEach(o => {
+      if (o.content) { push('【' + (o.title || '大纲') + '】'); push(o.content); push(''); }
+    });
+  }
+
+  const vols = Array.isArray(p.volumes) ? p.volumes : [];
+  const chs = Array.isArray(p.chapters) ? p.chapters : [];
+
+  if (vols.length) {
+    vols.forEach(vol => {
+      push('# ' + (vol.title || '分卷')); push('');
+      (vol.chapters || []).slice().sort((a,b)=>(a.sort||0)-(b.sort||0)).forEach(ch => {
+        push('## ' + (ch.title || '章节')); push('');
+        push(ch.content || ''); push(''); push('-'.repeat(30)); push('');
+      });
+    });
+  }
+
+  const loose = chs.filter(c => !c.volumeId && !c.volume).sort((a,b)=>(a.sort||0)-(b.sort||0));
+  if (loose.length) {
+    push('# 正文'); push('');
+    loose.forEach(ch => {
+      push('## ' + (ch.title || '章节')); push('');
+      push(ch.content || ''); push(''); push('-'.repeat(30)); push('');
+    });
+  }
+
+  if (p.characterData && p.characterData.characters) {
+    push('# 角色设定'); push('');
+    p.characterData.characters.forEach(ch => {
+      push('【' + (ch.name || '角色') + '】' + (ch.alias ? '（' + ch.alias + '）' : ''));
+      if (ch.intro) push('简介：' + ch.intro);
+      if (ch.tag) push('标签：' + ch.tag);
+      push('');
+    });
+  }
+
+  if (p.foreshadowData && p.foreshadowData.items) {
+    push('# 伏笔'); push('');
+    p.foreshadowData.items.forEach(f => {
+      push('【' + (f.title || '伏笔') + '】' + (f.done ? '（已回收）' : ''));
+      push(f.content || ''); push('');
+    });
+  }
+  return lines.join('\n');
+}
+
+function makeBlob(content) {
+  return new Blob(['\ufeff' + content], { type: 'text/plain;charset=UTF-8' });
+}
+function fullNameOf(filename) {
+  return (sanitizeName(String(filename).replace(/\.txt$/i, '')) || 'book') + '.txt';
+}
+
+// 解析（带缓存，三个按钮共用）
+async function getProject() {
+  if (lastTxt) return { txt: lastTxt, name: lastName };
+  const m = rawText.match(/#HHMZ-BOOK-ARCHIVE-DATA#(\d+)\/(\d+)#([A-Za-z0-9+/=]+)/g);
+  if (!m) throw new Error('未识别的 HHMZBOOK 文件格式');
+  const parts = {};
+  m.forEach(seg => {
+    const p = seg.match(/#(\d+)\/(\d+)#(.+)$/);
+    parts[p[1]] = p[3];
+  });
+  const total = Math.max.apply(null, Object.keys(parts).map(Number));
+  let encoded = '';
+  for (let i = 1; i <= total; i++) {
+    if (!parts[i]) throw new Error('数据块缺失：第 ' + i + ' 段');
+    encoded += parts[i].replace(/\s+/g, '');
+  }
+  const json = await decode(encoded);
+  const project = JSON.parse(json);
+  const txt = projectToTxt(project);
+  const finalName = sanitizeName(outName.value) || sanitizeName(project.name) || defaultName || 'book';
+  lastTxt = txt;
+  lastName = finalName + '.txt';
+  return { txt, name: lastName };
+}
+
+// 方式一：浏览器下载
+function downloadViaAnchor(content, filename) {
+  const fullName = fullNameOf(filename);
+  const blob = makeBlob(content);
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fullName;
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  requestAnimationFrame(() => {
+    link.click();
+    setTimeout(() => { document.body.removeChild(link); URL.revokeObjectURL(url); }, 1000);
+  });
+  return fullName;
+}
+
+// 方式二：系统另存为对话框
+async function saveViaPicker(content, filename) {
+  const fullName = fullNameOf(filename);
+  const handle = await window.showSaveFilePicker({
+    suggestedName: fullName,
+    types: [{ description: '文本文档', accept: { 'text/plain': ['.txt'] } }]
+  });
+  const w = await handle.createWritable();
+  await w.write(makeBlob(content));
+  await w.close();
+  return fullName;
+}
+
+// 三个按钮共用入口
+async function runSave(mode) {
+  if (!rawText) return;
+  setBusy(true);
+  setStatus('处理中…');
+  try {
+    const { txt, name } = await getProject();
+    if (mode === 'download') {
+      const n = downloadViaAnchor(txt, name);
+      setStatus('已保存：' + n + '（若文件名为随机串，改用「另存」）', 'ok');
+    } else if (mode === 'picker') {
+      const n = await saveViaPicker(txt, name);
+      setStatus('已通过系统另存为保存：' + n, 'ok');
+    }
+  } catch (e) {
+    if (e && e.name === 'AbortError') setStatus('已取消');
+    else setStatus('失败：' + e.message, 'err');
+  }
+  setBusy(false);
+}
+
+convertBtn.addEventListener('click', () => runSave('download'));
+pickerBtn.addEventListener('click', () => runSave('picker'));
+
+// GitHub 跳转：先跳 → 失败则复制链接 → 再失败则直接显示地址
+const GH_URL = 'https://github.com/AKM2498K146/Misc/tree/main/HHMZtoTXT';
+const ghLink = document.getElementById('ghLink');
+const ghUrl = document.getElementById('ghUrl');
+
+function showGhUrl(msg) {
+  ghUrl.classList.add('show');
+  if (msg) ghUrl.textContent = GH_URL + '\n（' + msg + '，请长按复制上方地址）';
+  else ghUrl.textContent = GH_URL;
+}
+
+function copyGhUrl() {
+  // 复制成功返回 true
+  const ta = document.createElement('textarea');
+  ta.value = GH_URL;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+  document.body.removeChild(ta);
+  return ok;
+}
+
+ghLink.addEventListener('click', e => {
+  // 尝试让浏览器跳转；若被拦截（本地文件、App 内核常见），走降级
+  let jumped = false;
+  try {
+    const w = window.open(GH_URL, '_blank');
+    jumped = !!w;
+  } catch (err) { jumped = false; }
+
+  if (jumped) return;
+
+  e.preventDefault();
+  // 降级一：复制
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(GH_URL).then(() => {
+      showGhUrl('跳转失败，已复制链接');
+    }).catch(() => {
+      if (copyGhUrl()) showGhUrl('跳转失败，已复制链接');
+      else showGhUrl('跳转与复制均失败');
+    });
+  } else {
+    if (copyGhUrl()) showGhUrl('跳转失败，已复制链接');
+    else showGhUrl('跳转与复制均失败');
+  }
+});
+
+// 长按链接也附上复制兜底
+ghLink.addEventListener('contextmenu', () => {
+  if (copyGhUrl()) showGhUrl('已复制链接');
+});
+
+// 「分发我」：把本工具这个 HTML 文件本体分享出去
+const SELF_NAME = 'hhmz_to_txt.html';
+
+// 直接用出厂快照，不碰当前 DOM，天然不含任何用户数据
+function getSelfBlob() {
+  return new Blob(['\ufeff' + SELF_HTML], { type: 'text/html;charset=UTF-8' });
+}
+
+function downloadSelf(blob) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = SELF_NAME;
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  requestAnimationFrame(() => {
+    a.click();
+    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
+  });
+}
+
+async function distributeSelf() {
+  distBtn.disabled = true;
+  setStatus('正在准备本工具文件…');
+  const blob = getSelfBlob();
+  downloadSelf(blob);
+  setStatus('已下载本工具：' + SELF_NAME, 'ok');
+  distBtn.disabled = false;
+}
+
+distBtn.addEventListener('click', distributeSelf);
+</script>
+</body>
+</html>
